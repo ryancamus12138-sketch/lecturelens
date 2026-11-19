@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LectureLens</title>
+<link rel="stylesheet" href="lib/katex/katex.min.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<header>
+  <div class="top"><div id="title">LectureLens</div><button id="langBtn" class="link" title="切换界面语言 / Switch interface language">中文</button></div>
+  <div id="status">打开一个课程录播页面，然后播放视频。</div>
+  <div id="speeds"></div>
+  <nav id="tabs">
+    <button data-tab="sub" class="on">字幕</button>
+    <button data-tab="sum">总结</button>
+    <button data-tab="chat">提问</button>
+    <button data-tab="lib">全课</button>
+    <button data-tab="set">设置</button>
+  </nav>
+</header>
+
+<div id="banner" hidden></div>
+
+<main>
+  <section id="v-sub" class="view on">
+    <div class="bar">
+      <label><input type="checkbox" id="follow" checked> 跟随播放</label>
+      <label><input type="checkbox" id="showEn" checked> 显示原文</label>
+      <span class="grow"></span>
+      <button id="retryTr" class="link" hidden>重试翻译</button>
+    </div>
+    <div id="subs" class="scroll"><p class="hint">还没有拿到字幕。Echo360 会自动读取完整转录；其他网站请打开播放器的 CC，或在“设置”里导入 .vtt / .srt 字幕文件。视频确实没有字幕时，“总结”页会改为只根据画面截图生成笔记。</p></div>
+  </section>
+
+  <section id="v-sum" class="view">
+    <div class="bar">
+      <button id="scan" title="不用播放：自动跳着截取整节课每一页 PPT 的画面，然后总结全部分段">扫描整节课</button>
+      <button id="sumAll" title="只根据字幕和已截到的画面总结，不扫描">总结全部</button>
+      <button id="overall">整课笔记</button>
+      <span class="grow"></span>
+      <button id="expPdf" class="link">PDF</button>
+      <button id="expMd" class="link">MD</button>
+      <button id="expHtml" class="link">HTML</button>
+    </div>
+    <div id="sums" class="scroll"><p class="hint">播放到每个分段末尾时会自动生成要点。不想等：点“扫描整节课”，自动截取每页 PPT 的画面并总结全部分段。</p></div>
+  </section>
+
+  <section id="v-chat" class="view">
+    <div id="chat" class="scroll"><p class="hint">针对这节课随时提问，回答会结合字幕、课件和已有总结。例如：“刚才这个公式是怎么推出来的？”</p></div>
+    <div class="ask">
+      <textarea id="q" rows="2" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+      <div class="bar">
+        <label><input type="checkbox" id="withFrame" checked> 附带当前画面</label>
+        <span class="grow"></span>
+        <button id="clearChat" class="link">清空</button>
+        <button id="askBtn">发送</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-lib" class="view">
+    <div class="bar">
+      <select id="libCourse"></select>
+      <span id="libInfo" class="hint"></span>
+    </div>
+    <div class="ask" style="border-top:0;border-bottom:1px solid var(--line)">
+      <textarea id="libQ" rows="2" placeholder="搜索关键词（中英文都行），或直接向整门课提问"></textarea>
+      <div class="bar">
+        <button id="libSearch">搜索</button>
+        <button id="libAsk">问整门课</button>
+        <span class="grow"></span>
+        <button id="libList" class="link">已收录课次</button>
+      </div>
+    </div>
+    <div id="libOut" class="scroll"></div>
+  </section>
+
+  <section id="v-set" class="view scroll">
+    <h3>课件 / 字幕文件</h3>
+    <p class="hint">上传这节课的 PPT（.pptx / .pdf）或讲义文本，总结和答疑会对照课件页码。也可以导入 .vtt / .srt 字幕。</p>
+    <input type="file" id="file" accept=".pdf,.pptx,.txt,.md,.vtt,.srt" multiple>
+    <div id="deckInfo" class="hint"></div>
+
+    <h3>模型接口</h3>
+    <label class="f">接口类型
+      <select id="provider">
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI 兼容（OpenAI / DeepSeek / Gemini / 通义等）</option>
+      </select>
+    </label>
+    <label class="f" id="baseRow">接口地址 (Base URL)
+      <input id="baseUrl" placeholder="https://api.openai.com/v1">
+    </label>
+    <label class="f">API key
+      <input id="apiKey" type="password" autocomplete="off" placeholder="只保存在本机浏览器">
+    </label>
+    <label class="f">翻译用模型（快、便宜）
+      <input id="modelFast">
+    </label>
+    <label class="f">总结 / 答疑用模型（更强，需支持图片才能读画面；留空则同上）
+      <input id="modelSmart">
+    </label>
+    <label><input type="checkbox" id="smartSep"> 总结 / 答疑改用另一家接口（例如翻译用 DeepSeek，总结用 GPT）</label>
+    <div id="smartBox" hidden>
+      <label class="f">总结接口类型
+        <select id="smartProvider">
+          <option value="codex">本机 Codex（用 ChatGPT 会员额度，需先运行 codex-bridge）</option>
+          <option value="openai">OpenAI 兼容（OpenAI / Gemini 等，按量付费）</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+        </select>
+      </label>
+      <label class="f" id="smartBaseRow">总结接口地址 (Base URL)
+        <input id="smartBaseUrl" placeholder="https://api.openai.com/v1">
+      </label>
+      <label class="f"><span id="smartKeyLabel">总结接口的 API key</span>
+        <input id="smartKey" type="password" autocomplete="off" placeholder="只保存在本机浏览器">
+      </label>
+      <div id="codexBox" hidden>
+        <label class="f">Codex 模型
+          <select id="codexModel"></select>
+        </label>
+        <label class="f">推理强度（越高越细致，也越慢、越耗额度）
+          <select id="codexEffort"></select>
+        </label>
+        <div class="bar"><button id="codexRefresh">刷新模型列表</button><span id="codexInfo" class="hint"></span></div>
+      </div>
+    </div>
+    <div class="bar"><button id="test">测试连接</button><span id="testOut" class="hint"></span></div>
+
+    <h3>行为</h3>
+    <label class="f">翻译目标语言 <input id="lang"></label>
+    <label class="f">总结分段长度（分钟，按视频时间）<input id="segMin" type="number" min="2" max="20"></label>
+    <label class="f">视频上叠加字幕
+      <select id="overlay">
+        <option value="both">译文 + 原文</option>
+        <option value="zh">仅译文</option>
+        <option value="off">关闭</option>
+      </select>
+    </label>
+    <label class="f">扫描整节课时每个分段截几张画面（越少越快）
+      <select id="scanShots">
+        <option value="1">1 张（最快）</option>
+        <option value="2">2 张（推荐）</option>
+        <option value="3">3 张（最细）</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="autoTranslate"> 自动翻译整节课字幕（提前翻好，倍速不掉队）</label><br>
+    <label><input type="checkbox" id="autoSummary"> 播放到分段末尾自动总结</label><br>
+    <label><input type="checkbox" id="vision"> 截取视频画面给模型（读 PPT、板书和手写标注）</label>
+
+    <h3>缓存</h3>
+    <div class="bar"><button id="clearThis">清除本节课缓存</button><button id="clearAll">清除全部缓存</button></div>
+  </section>
+</main>
+
+<script src="i18n.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/marked.min.js"></script>
+<script src="lib/purify.min.js"></script>
+<script src="lib/katex/katex.min.js"></script>
+<script src="parsers.js"></script>
+<script type="module" src="panel.js"></script>
+</body>
+</html>

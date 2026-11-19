@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "LectureLens",
+  "version": "1.6.2",
+  "description": "Bilingual captions, segment notes, slide and whiteboard reading, Q&A and note export for lecture recordings. Works with Echo360 and other captioned video sites.",
+  "permissions": ["sidePanel", "storage", "unlimitedStorage", "scripting", "tabs", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Open LectureLens" },
+  "side_panel": { "default_path": "panel.html" },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["hook.js"], "run_at": "document_start", "all_frames": true, "world": "MAIN" },
+    { "matches": ["<all_urls>"], "js": ["parsers.js", "content.js"], "run_at": "document_start", "all_frames": true }
+  ]
+}
